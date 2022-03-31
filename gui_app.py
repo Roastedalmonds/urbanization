@@ -274,6 +274,6 @@ if data:
     data = pd.read_csv('location.csv')
     data.drop(['index'], axis=1, inplace=True)
     st.dataframe(data)
-    centroids = predict.gron_image(data, gdf, min_coord, max_coord)
+    # centroids = predict.gron_image(data, gdf, min_coord, max_coord)
 
 m.to_streamlit(height=600)

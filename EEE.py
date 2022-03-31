@@ -19,14 +19,24 @@ def minmax(point, min, max):
 def get_poly_coords(df, min_coord, max_coord):
     df['geometry'] = df['geometry'].apply(wkt.loads)
     gdf = gpd.GeoDataFrame(df, crs='epsg:4326')
+
+    p1 = min_coord
+    p2 = [min_coord[0], max_coord[1]]
+    p3 = max_coord
+    p4 = [max_coord[0], min_coord[1]]
+
+    pointList = [p1, p2, p3, p4]
+    bbPoly = Polygon(pointList) 
     jsonPoly=[]
     polyType=[]
     for x in range(len(gdf)):
         if type(gdf.loc[x,'geometry'])==Polygon:
+            # oo = gdf.loc[x,'geometry'].intersection(bbPoly)
+            # gdf.loc[x,'geometry'] = Polygon(list(oo.exterior.coords))
             try:
                 polys=[]
                 for i,j in list(zip(gdf.loc[x,'geometry'].boundary.xy[0],gdf.loc[x,'geometry'].boundary.xy[1])):
-                    temp99 = minmax((i, j), min_coord, max_coord)
+                    temp99 = minmax([i, j], min_coord, max_coord)
                     polys.append(dict({'x':temp99[0],'y':temp99[1]}))
                 # polys.append(polys[0])
                 jsonPoly.append([polys])
@@ -41,7 +51,7 @@ def get_poly_coords(df, min_coord, max_coord):
                 for t in range(len(gdf.loc[x,'geometry'].geoms)):
                     polys=[]
                     for i,j in zip(gdf.loc[x,'geometry'].geoms[t].boundary.xy[0],gdf.loc[x,'geometry'].geoms[t].boundary.xy[1]):
-                        temp99 = minmax((i, j), min_coord, max_coord)
+                        temp99 = minmax([i, j], min_coord, max_coord)
                         polys.append(dict({'x':temp99[0],'y':temp99[1]}))
                     # polys.append(polys[0])
                     mulPoly.append(polys)
@@ -52,7 +62,7 @@ def get_poly_coords(df, min_coord, max_coord):
                 polyType.append('NA')
 
         elif type(gdf.loc[x,'geometry'])==Point:
-            temp99 = minmax((gdf.loc[x,'geometry'].xy[0], gdf.loc[x,'geometry'].xy[1]), min_coord, max_coord)
+            temp99 = minmax([list(gdf.loc[x,'geometry'].xy[0])[0], list(gdf.loc[x,'geometry'].xy[1])[0]], min_coord, max_coord)
             jsonPoly.append([dict({'x':temp99[0],'y':temp99[1]})])
             polyType.append(1)
 
