@@ -5,6 +5,13 @@ import osmnx as ox
 from shapely import wkt
 import math
 from shapely.geometry import Point, Polygon, MultiPolygon, LineString
+import streamlit as st
+
+import warnings
+warnings.filterwarnings('ignore', category=DeprecationWarning)
+def warn(*args, **kwargs):
+    pass
+warnings.warn = warn
 
 def minmax(point, min, max):
     return [(point[0] - min[0]) / (max[0] - min[0]), (point[1] - min[1]) / (max[1] - min[1])]
@@ -21,7 +28,7 @@ def get_poly_coords(df, min_coord, max_coord):
                 for i,j in list(zip(gdf.loc[x,'geometry'].boundary.xy[0],gdf.loc[x,'geometry'].boundary.xy[1])):
                     temp99 = minmax((i, j), min_coord, max_coord)
                     polys.append(dict({'x':temp99[0],'y':temp99[1]}))
-                polys.append(polys[0])
+                # polys.append(polys[0])
                 jsonPoly.append([polys])
                 polyType.append(3)
             except:
@@ -36,7 +43,7 @@ def get_poly_coords(df, min_coord, max_coord):
                     for i,j in zip(gdf.loc[x,'geometry'].geoms[t].boundary.xy[0],gdf.loc[x,'geometry'].geoms[t].boundary.xy[1]):
                         temp99 = minmax((i, j), min_coord, max_coord)
                         polys.append(dict({'x':temp99[0],'y':temp99[1]}))
-                    polys.append(polys[0])
+                    # polys.append(polys[0])
                     mulPoly.append(polys)
                 jsonPoly.append(mulPoly)
                 polyType.append(4)
@@ -183,7 +190,7 @@ def latlongBounds(temp):
     return (bounds, diffLat, diffLong)
 
 def computeEEE(coordinates, min_coord, max_coord):
-    print('9. EEE started')
+    st.write('8. EEE started')
     bounds, diffLat, diffLong = latlongBounds(coordinates)
     historicTag={'historic': True, 'tourism':True, 'leisure':'nature_reserve'}
     buildingTag = {'building':True}
@@ -220,5 +227,5 @@ def computeEEE(coordinates, min_coord, max_coord):
     jsonPoly,polyType = get_poly_coords(forest, min_coord, max_coord)
     forestJSON = get_forest_json_op(jsonPoly,polyType,forest)
 
-    print('10. EEE finished')
+    st.write('9. EEE finished')
     return historicJSON, buildingJSON, forestJSON

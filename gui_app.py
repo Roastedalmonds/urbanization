@@ -1,3 +1,4 @@
+from matplotlib.pyplot import axis
 import streamlit as st
 import streamlit.components.v1 as components
 import streamlit_folium
@@ -18,13 +19,16 @@ from shapely.geometry import Polygon, Point, LineString, MultiPolygon
 # import georasters as gr
 from scipy import spatial
 import tagee
+import predict
 import EEE
-import warnings
 import osmnx as ox
 import json
-import sklearn
 
+import warnings
 warnings.filterwarnings('ignore', category=DeprecationWarning)
+def warn(*args, **kwargs):
+    pass
+warnings.warn = warn
 
 def uploaded_file_to_gdf(data):
     import tempfile
@@ -97,8 +101,9 @@ def TAGEE(coordinates):
                 .first().clip(ee.Geometry.Polygon(coordinates))
 
     cityPoly = Polygon(coordinates)
-    cutBlocks =  _quadrat_cut_geometry(cityPoly, 0.098, 15)
-    print('3. cutBlocks done')
+    # cutBlocks =  _quadrat_cut_geometry(cityPoly, 0.098, 15)
+    cutBlocks =  _quadrat_cut_geometry(cityPoly, 0.2, 7)
+    st.write('4. cutBlocks done')
 
     geom = ee.FeatureCollection(ee.Feature(ee.Geometry.Polygon(coordinates)))
     gaussianFilter = ee.Kernel.gaussian(radius=3, sigma=2, units='pixels', normalize=True)
@@ -106,7 +111,7 @@ def TAGEE(coordinates):
     terrainMetrics = tagee.terrainAnalysis(srtmSmooth, geom.geometry())
     superReducer = ee.Reducer.median().combine(ee.Reducer.minMax(), "", True)
     reduction = terrainMetrics.reduceRegions(geom,superReducer)
-    print('4. TAGEE_city done')
+    st.write('5. TAGEE_city done')
 
     cityTagee=[]
     cityTagee = reduction.getInfo()
@@ -133,7 +138,7 @@ def TAGEE(coordinates):
         df[cityFeatures2[x]]=cityTagee['features'][0]['properties'][cityFeatures[x]]
     datalist = explode(cutBlocks)
     cityBlocks = gpd.GeoDataFrame(gpd.GeoSeries(datalist))
-    print('5. TAGEE_tile done')
+    st.write('6. TAGEE_tile done')
 
     cityId=[]
     for z in range(len(cityBlocks)):
@@ -144,36 +149,34 @@ def TAGEE(coordinates):
     cityBlocks[['Prob_O', 'Prob_N', 'Prob_G', 'Prob_R']] =  None
     cityBlocks['cls'] = 'Nopattern'
     
-    geemap.ee_export_image(worldCover, filename='Cover.tif', scale=90, file_per_band=True)
-    wc = gr.from_file('Cover.Map.tif')
-    try:
-        worldCover = wc.to_geopandas()
-        tree = spatial.KDTree(list(zip(worldCover['x'],worldCover['y'])))
+    # geemap.ee_export_image(worldCover, filename='Cover.tif', scale=90, file_per_band=True)
+    # wc = gr.from_file('Cover.Map.tif')
+    # try:
+    #     worldCover = wc.to_geopandas()
+    #     tree = spatial.KDTree(list(zip(worldCover['x'],worldCover['y'])))
     
-        cover0=[]
-        for name in cityBlocks.index.to_list():
-            centroid = cityBlocks.loc[name].geometry.centroid
-            point = (centroid.y, centroid.x)
-            t = tree.query([centroid.x,centroid.y])
-            cover0.append(worldCover.iloc[t[-1]]['value'])
-        cityBlocks['cover'] = cover0
+    #     cover0=[]
+    #     for name in cityBlocks.index.to_list():
+    #         centroid = cityBlocks.loc[name].geometry.centroid
+    #         point = (centroid.y, centroid.x)
+    #         t = tree.query([centroid.x,centroid.y])
+    #         cover0.append(worldCover.iloc[t[-1]]['value'])
+    #     cityBlocks['cover'] = cover0
 
-    except:
-        cover0=list(np.zeros(len(cityBlocks)))
-        cityBlocks['cover'] = cover0
-    print('6. worldcover done')
+    # except:
+    #     cover0=list(np.zeros(len(cityBlocks)))
+    #     cityBlocks['cover'] = cover0
+    # print('6. worldcover done')
 
-    grid = getProb(cityBlocks)
-
-    kk = grid
-    kk = kk.reset_index().reset_index()
     df = df.reset_index()
-    df = df.merge(kk,on='index')
+    # df.drop(['index'], axis=1, inplace=True)
+    st.dataframe(df)
+    st.write(df.columns)
     file_name = 'location.csv'
     df.to_csv(file_name)
 
     print('7. data created and saved')
-    return df
+    return df, datalist
 
 def minmax(point, min, max):
     return [(point[0] - min[0]) / (max[0] - min[0]), (point[1] - min[1]) / (max[1] - min[1])]
@@ -181,10 +184,6 @@ def minmax(point, min, max):
 def get_area_polygon(polygon):
     polygon = polygon.to_crs({'init': 'epsg:3857'})
     return (polygon.area) / 10**6
-
-def predict_layout(dataset):  # GRON --> return json
-    model = pickle.load(open('rf_63_acc.pkl', 'rb'))
-    print('8. Predictions')
 
 # main code
 st.title('Urbanization')
@@ -229,28 +228,40 @@ data = st.file_uploader("Upload a GeoJSON file to use as an ROI.",
 
 if data:
     gdf = uploaded_file_to_gdf(data)
-    print(get_area_polygon(gdf))
+    # st.write(gdf)
+    st.write('Area: ', list(get_area_polygon(gdf)))
     st.session_state["roi"] = geemap.geopandas_to_ee(gdf, geodesic=False)
     m.add_gdf(gdf, "ROI")
     coordinates = list(gdf['geometry'].exterior[0].coords)
     # print('coord', coordinates)
-    print('1. Coordinates Done')
+    st.write('1. Coordinates Done')
 
     min_coord, max_coord, diffLat, diffLong = get_bounding_box(coordinates)
-    print('2. BBox Done')
+    st.write('2. BBox Done')
 
     # print(min_coord, max_coord)
-    coords_json = []
+    temp0, temp1 = [], []
     for coord in coordinates:
         min_max = minmax(coord, min_coord, max_coord)
-        coords_json.append(dict({'x':min_max[0],'y':min_max[1]}))
+        temp0.append(dict({'x':min_max[0],'y':min_max[1]}))
+        temp1.append(dict({'x':coord[0],'y':coord[1]}))
+
+    coords_json = {'normalized': temp0, 
+                    'original': temp1, 
+                    # 'area': get_area_polygon(gdf),
+                    'bbox': {'min_x':min_coord[0],
+                            'min_y':min_coord[1],
+                            'max_x':max_coord[0],
+                            'max_y':max_coord[1]
+                        },
+                    'diff': [diffLat, diffLong]
+                    }
 
     with open("./Generator/src/ts/impl/city_loc.json", "w") as outfile:
         json.dump(coords_json, outfile)
+    st.write('3. City polygon json done')
 
-    # data = TAGEE(coordinates)
-
-    centroids = predict_layout(data)
+    # data, multipoly = TAGEE(coordinates)
 
     historic, buildings, forest = EEE.computeEEE(coordinates[:-1], min_coord, max_coord)
     
@@ -258,6 +269,11 @@ if data:
 
     with open("./Generator/src/ts/impl/coasts.json", "w") as outfile:
         json.dump(coasts, outfile)
+    st.write('10. 3E jsons done')
     
+    data = pd.read_csv('location.csv')
+    data.drop(['index'], axis=1, inplace=True)
+    st.dataframe(data)
+    centroids = predict.gron_image(data, gdf, min_coord, max_coord)
 
 m.to_streamlit(height=600)

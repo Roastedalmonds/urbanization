@@ -1,6 +1,12 @@
 import ee
 import math
 
+import warnings
+warnings.filterwarnings('ignore', category=DeprecationWarning)
+def warn(*args, **kwargs):
+    pass
+warnings.warn = warn
+
 # Functions for calculating parameters
 
 def calculateParameters(dem, bbox):
