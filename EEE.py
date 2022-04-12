@@ -1,4 +1,5 @@
 import imp
+import json
 import pandas as pd
 import geopandas as gpd
 import osmnx as ox
@@ -6,15 +7,13 @@ from shapely import wkt
 import math
 from shapely.geometry import Point, Polygon, MultiPolygon, LineString
 import streamlit as st
+import utils
 
 import warnings
 warnings.filterwarnings('ignore', category=DeprecationWarning)
 def warn(*args, **kwargs):
     pass
 warnings.warn = warn
-
-def minmax(point, min, max):
-    return [(point[0] - min[0]) / (max[0] - min[0]), (point[1] - min[1]) / (max[1] - min[1])]
 
 def get_poly_coords(df, min_coord, max_coord):
     df['geometry'] = df['geometry'].apply(wkt.loads)
@@ -36,7 +35,7 @@ def get_poly_coords(df, min_coord, max_coord):
             try:
                 polys=[]
                 for i,j in list(zip(gdf.loc[x,'geometry'].boundary.xy[0],gdf.loc[x,'geometry'].boundary.xy[1])):
-                    temp99 = minmax([i, j], min_coord, max_coord)
+                    temp99 = utils.minmax([i, j], min_coord, max_coord)
                     polys.append(dict({'x':temp99[0],'y':temp99[1]}))
                 # polys.append(polys[0])
                 jsonPoly.append([polys])
@@ -51,7 +50,7 @@ def get_poly_coords(df, min_coord, max_coord):
                 for t in range(len(gdf.loc[x,'geometry'].geoms)):
                     polys=[]
                     for i,j in zip(gdf.loc[x,'geometry'].geoms[t].boundary.xy[0],gdf.loc[x,'geometry'].geoms[t].boundary.xy[1]):
-                        temp99 = minmax([i, j], min_coord, max_coord)
+                        temp99 = utils.minmax([i, j], min_coord, max_coord)
                         polys.append(dict({'x':temp99[0],'y':temp99[1]}))
                     # polys.append(polys[0])
                     mulPoly.append(polys)
@@ -62,14 +61,14 @@ def get_poly_coords(df, min_coord, max_coord):
                 polyType.append('NA')
 
         elif type(gdf.loc[x,'geometry'])==Point:
-            temp99 = minmax([list(gdf.loc[x,'geometry'].xy[0])[0], list(gdf.loc[x,'geometry'].xy[1])[0]], min_coord, max_coord)
+            temp99 = utils.minmax([list(gdf.loc[x,'geometry'].xy[0])[0], list(gdf.loc[x,'geometry'].xy[1])[0]], min_coord, max_coord)
             jsonPoly.append([dict({'x':temp99[0],'y':temp99[1]})])
             polyType.append(1)
 
         elif type(gdf.loc[x,'geometry'])==LineString:
             try:
                 for i,j in zip(gdf.loc[x,'geometry'].boundary.xy[0],gdf.loc[x,'geometry'].boundary.xy[1]):
-                    temp99 = minmax((i, j), min_coord, max_coord)
+                    temp99 = utils.minmax((i, j), min_coord, max_coord)
                     polys.append(dict({'x':temp99[0],'y':temp99[1]}))
                 jsonPoly.append(polys)
                 polyType.append(2)
@@ -174,6 +173,12 @@ def get_forest_json_op(jsonPoly,polyType,df):
                 'geometry':jsonPoly[x]
             }
             jsonOP.append(temp)
+        jsonOP.append({
+                'name':'GD',
+                'type': 'Water',
+                'polygon':3,
+                'geometry':[[{'x':234, 'y':122}, {'x':370, 'y':94}, {'x':335, 'y':253}, {'x':210, 'y':229}, {'x':234, 'y':122}]]
+            })
     return jsonOP
 
 def latlongBounds(temp):    

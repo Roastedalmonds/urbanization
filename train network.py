@@ -5,7 +5,6 @@ import pandas as pd
 import cv2
 import math
 from collections import defaultdict
-from google.colab.patches import cv2_imshow
 from sklearn.cluster import KMeans
 
 def distance(a, b):
