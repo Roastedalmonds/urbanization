@@ -203,20 +203,21 @@ if data:
     with open("./Generator/src/ts/impl/city_loc.json", "w") as outfile:
         json.dump(coords_json, outfile)
     st.write('3. City polygon json done')
-
+    print(coords_json)
     bbox = [min_coord, [min_coord[0], max_coord[1]], max_coord, [max_coord[0], min_coord[1]]]
     data, multipoly = TAGEE(bbox)
 
     historic, buildings, forest = EEE.computeEEE(coordinates[:-1], min_coord, max_coord)
-    
+    # historic, buildings, forest = [], [], []
     coasts = {'historic': historic, 'buildings': buildings, 'forest': forest}
 
     with open("./Generator/src/ts/impl/coasts.json", "w") as outfile:
         json.dump(coasts, outfile)
     st.write('10. 3E jsons done')
-    
+    print()
+    print(coasts)
     data = pd.read_csv('location.csv')
-    # data.drop(['index'], axis=1, inplace=True)
+    data.drop(['index'], axis=1, inplace=True)
     st.dataframe(data)
     centroids = predict.gron_image(data, gdf, min_coord, max_coord)
 

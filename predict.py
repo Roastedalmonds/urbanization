@@ -67,7 +67,7 @@ def gron_image(data, gdf, min_coord, max_coord):
     st.write('No of blocks:', len(bbBlocks))
 
     layout = predict(data)
-    layout = [random.randint(0, 1) for i in range(len(layout))]
+    # layout = [random.randint(0, 3) for i in range(len(layout))]
     st.write('No of layout:', len(layout))
     st.write(layout)
 
@@ -77,49 +77,17 @@ def gron_image(data, gdf, min_coord, max_coord):
         for i, j in zip(block.boundary.xy[0],block.boundary.xy[1]):
             coords.append([i, j])
             temp.append(utils.minmax(point=[i, j], min=min_coord, max=max_coord, h=height, w=width))
+        temp.pop()
         temp.append(Polygon(coords).centroid)
-        normalized_geoms.append(temp)
         if layout[idx] == 0 or layout[idx] == 1:
-            normalized_geoms.append(0)
+            temp.append(0)
         else:
-            normalized_geoms.append(1)
-
-    # cnt, total = 0, len(layout)
-    # for x in range(len(bbBlocks.geoms)):
-    #     temp = []
-    #     coords = []
-    #     x_c, y_c = [], []
-    #     for i,j in zip(bbBlocks[x].boundary.xy[0],bbBlocks[x].boundary.xy[1]):
-    #         coords.append([i,j])
-    #         x_c.append(i)
-    #         y_c.append(j)
-
-    #     max_x, max_y = max(x_c), max(y_c)
-    #     st.write(x, max_x, max_y, max_coord)
-    #     geom = Polygon(coords)
-    #     cent = geom.centroid
-
-    #     if cityPoly.contains(cent):
-    #         # grid -> black & radial -> white
-    #         if layout[cnt] == 0 or layout[cnt] == 1:
-    #             temp.append(0)
-    #         else:
-    #             temp.append(1)
-    #         cnt += 1
-    #     else:
-    #         temp.append(0)
-
-    #     if max_x >= max_coord[0] or max_y >= max_coord[1]:
-    #         st.write('Condn applied', x)
-    #         img_array.append(temp)
-    #         temp = []
-
-    # st.write(img_array)
-
+            temp.append(1)
+        normalized_geoms.append(temp)
+    
     img_grid, img_radial = utils.generate_image(normalized_blocks=normalized_geoms, height=height, width=width)
-
-    cv2.imwrite('img_grid.png', np.array(img_grid))
-    cv2.imwrite('img_rad.png', np.array(img_radial))
+    st.image(img_grid, clamp=True)
+    st.image(img_radial, clamp=True)
 
     # for i in img_array:
     #     st.write(i)

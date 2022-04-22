@@ -15,6 +15,19 @@ def warn(*args, **kwargs):
     pass
 warnings.warn = warn
 
+def clipPoly(coord, minX, minY, maxX, maxY):
+    if coord[0] <= minX:
+        coord[0] = minX
+    elif coord[0] >= maxX:
+        coord[0] = maxX
+    
+    if coord[1] <= minY:
+        coord[1] = minY
+    elif coord[1] >= maxY:
+        coord[1] = maxY
+    
+    return coord
+
 def get_poly_coords(df, min_coord, max_coord):
     df['geometry'] = df['geometry'].apply(wkt.loads)
     gdf = gpd.GeoDataFrame(df, crs='epsg:4326')
@@ -24,19 +37,26 @@ def get_poly_coords(df, min_coord, max_coord):
     p3 = max_coord
     p4 = [max_coord[0], min_coord[1]]
 
+    width = max_coord[1] - min_coord[1]
+    height = max_coord[0] - min_coord[0]
+
     pointList = [p1, p2, p3, p4]
     bbPoly = Polygon(pointList) 
     jsonPoly=[]
     polyType=[]
     for x in range(len(gdf)):
+        temp299 = []
         if type(gdf.loc[x,'geometry'])==Polygon:
             # oo = gdf.loc[x,'geometry'].intersection(bbPoly)
             # gdf.loc[x,'geometry'] = Polygon(list(oo.exterior.coords))
             try:
                 polys=[]
                 for i,j in list(zip(gdf.loc[x,'geometry'].boundary.xy[0],gdf.loc[x,'geometry'].boundary.xy[1])):
-                    temp99 = utils.minmax([i, j], min_coord, max_coord)
-                    polys.append(dict({'x':temp99[0],'y':temp99[1]}))
+                    temp199 = clipPoly([i, j], min_coord[0], min_coord[1], max_coord[0], max_coord[1])
+                    temp199 = utils.minmax(temp199, min_coord, max_coord, height, width)
+                    if tuple(temp199) not in temp299:
+                        temp299.append(tuple(temp199))
+                        polys.append(dict({'x':temp199[0],'y':temp199[1]}))
                 # polys.append(polys[0])
                 jsonPoly.append([polys])
                 polyType.append(3)
@@ -50,8 +70,12 @@ def get_poly_coords(df, min_coord, max_coord):
                 for t in range(len(gdf.loc[x,'geometry'].geoms)):
                     polys=[]
                     for i,j in zip(gdf.loc[x,'geometry'].geoms[t].boundary.xy[0],gdf.loc[x,'geometry'].geoms[t].boundary.xy[1]):
-                        temp99 = utils.minmax([i, j], min_coord, max_coord)
-                        polys.append(dict({'x':temp99[0],'y':temp99[1]}))
+                        temp199 = clipPoly([i, j], min_coord[0], min_coord[1], max_coord[0], max_coord[1])
+                        temp199 = utils.minmax(temp199, min_coord, max_coord, height, width)
+                        if tuple(temp199) not in temp299:
+                            temp299.append(tuple(temp199))
+                            polys.append(dict({'x':temp199[0],'y':temp199[1]}))
+                    temp299 = []
                     # polys.append(polys[0])
                     mulPoly.append(polys)
                 jsonPoly.append(mulPoly)
@@ -61,15 +85,18 @@ def get_poly_coords(df, min_coord, max_coord):
                 polyType.append('NA')
 
         elif type(gdf.loc[x,'geometry'])==Point:
-            temp99 = utils.minmax([list(gdf.loc[x,'geometry'].xy[0])[0], list(gdf.loc[x,'geometry'].xy[1])[0]], min_coord, max_coord)
+            temp99 = utils.minmax([list(gdf.loc[x,'geometry'].xy[0])[0], list(gdf.loc[x,'geometry'].xy[1])[0]], min_coord, max_coord, height, width)
             jsonPoly.append([dict({'x':temp99[0],'y':temp99[1]})])
             polyType.append(1)
 
         elif type(gdf.loc[x,'geometry'])==LineString:
             try:
                 for i,j in zip(gdf.loc[x,'geometry'].boundary.xy[0],gdf.loc[x,'geometry'].boundary.xy[1]):
-                    temp99 = utils.minmax((i, j), min_coord, max_coord)
-                    polys.append(dict({'x':temp99[0],'y':temp99[1]}))
+                    temp199 = clipPoly([i, j], min_coord[0], min_coord[1], max_coord[0], max_coord[1])
+                    temp199 = utils.minmax(temp199, min_coord, max_coord, height, width)
+                    if tuple(temp199) not in temp299:
+                        temp299.append(tuple(temp199))
+                        polys.append(dict({'x':temp199[0],'y':temp199[1]}))
                 jsonPoly.append(polys)
                 polyType.append(2)
             except:
